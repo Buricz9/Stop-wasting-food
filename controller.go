@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"sort"
+	"strings"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -18,9 +20,8 @@ func connectionOfDataBase(login string, password string) *sql.DB {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	// defer db.Close()
 
-	// err = db.Ping()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,18 +32,10 @@ func connectionOfDataBase(login string, password string) *sql.DB {
 
 	fmt.Println("Successfully connected to MariaDB")
 	return db
-	// history := History{"jabłko,banan", 2}
-	// pk := insertHistory(db, history)
-	// insertHistory(db, History{"jabłko,banan,jajko", 2})
-	// insertHistory(db, History{"jabłko,banan,jajko,chleb", 3})
 
-	// fmt.Println("Inserted history with primary key:", pk)
-
-	// getFromHistory(db, 8)
-	// getAllHistory(db)
 }
 
-func getAllHistory(db *sql.DB, ingredients string, number int) {
+func getAllHistory(db *sql.DB) []History {
 	rows, err := db.Query("SELECT historyOfIngredients, historyOfNumber FROM history_of_inputs")
 	if err != nil {
 		log.Fatal(err)
@@ -60,29 +53,46 @@ func getAllHistory(db *sql.DB, ingredients string, number int) {
 		}
 		data = append(data, History{ing, num})
 	}
-	fmt.Println("All history from DB:", data)
+
+	return data
 }
 
-// func searchDB(db *sql.DB, ingredients string, number int) {
-// 	var historyOfIngredients string
-// 	var historyOfNumber int
-// 	query := `SELECT historyOfIngredients, historyOfNumber FROM history_of_inputs WHERE historyOfIngredients = '` + ingredients + `' AND historyOfNumber = ` + fmt.Sprint(number) + `;`
-// 	err := db.QueryRow(query).Scan(&historyOfIngredients, &historyOfNumber)
-// 	if err != nil {
-// 		if err != sql.ErrNoRows {
-// 			log.Fatal("No rows found in data base: ")
-// 		}
-// 		log.Fatal(err)
-// 	}
-// 	fmt.Println("History from DB:", historyOfIngredients, historyOfNumber)
-// }
+func printFormattedHistory(data [][]interface{}) {
+	for _, d := range data {
+		ingredients := d[0].([]string)
+		number := d[1].(int)
+		fmt.Printf("[%v] %v\n", ingredients, number)
+	}
+}
 
-func insertHistory(db *sql.DB, history History) int {
+func isHistoryExists(db *sql.DB, ingredients string, number int) bool {
+	allHistory := getAllHistory(db)
+
+	areIngredientsEqual := func(ing1, ing2 string) bool {
+		ingSlice1 := strings.Split(ing1, ",")
+		ingSlice2 := strings.Split(ing2, ",")
+		sort.Strings(ingSlice1)
+		sort.Strings(ingSlice2)
+		return strings.Join(ingSlice1, ",") == strings.Join(ingSlice2, ",")
+	}
+
+	for _, history := range allHistory {
+		if areIngredientsEqual(history.Ingridients, ingredients) && history.Number == number {
+			fmt.Println("History already exists in DB")
+			return true
+		}
+	}
+	fmt.Println("History does not exist in DB")
+	return false
+}
+
+func insertHistory(db *sql.DB, ingredients string, number int) int {
+
 	query := `INSERT INTO history_of_inputs (historyOfIngredients, historyOfNumber) 
 		VALUES (?, ?) RETURNING id`
 
 	var pk int
-	err := db.QueryRow(query, history.Ingridients, history.Number).Scan(&pk)
+	err := db.QueryRow(query, ingredients, number).Scan(&pk)
 	if err != nil {
 		log.Fatal(err)
 	}
