@@ -6,9 +6,13 @@ import (
 )
 
 func main() {
-
 	//wrirte your api key here
-	apiKey := "apiKey"
+	apiKey := ""
+	//write your login and password to data base here
+	login := "login"
+	password := "password"
+
+	db := connectionOfDataBase(login, password)
 
 	ingredientsFlag := flag.String("ingredients", "", "List of ingredients separated by commas")
 	numberOfRecipesFlag := flag.Int("numberOfRecipes", 1, "Max number of recipes to display")
@@ -22,5 +26,13 @@ func main() {
 		return
 	}
 
-	findByIngredients(apiKey, *ingredientsFlag, *numberOfRecipesFlag)
+	exist := isHistoryExists(db, *ingredientsFlag, *numberOfRecipesFlag)
+	if exist == false {
+		findByIngredients(apiKey, *ingredientsFlag, *numberOfRecipesFlag, db)
+	} else {
+		// TODO: get data from database
+		getDetailsRecipe(db, *ingredientsFlag, *numberOfRecipesFlag)
+	}
+	defer db.Close()
+
 }
