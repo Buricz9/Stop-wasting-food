@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,21 +14,23 @@ type Ingredient struct {
 	Name string `json:"name"`
 }
 
+type Nutrients struct {
+	Name   string  `json:"name"`
+	Amount float64 `json:"amount"`
+}
+
 type Recipe struct {
 	Title             string       `json:"title"`
 	MissedIngredients []Ingredient `json:"missedIngredients"`
 	UsedIngredients   []Ingredient `json:"usedIngredients"`
 	Results           []struct {
 		Nutrition struct {
-			Nutrients []struct {
-				Name   string  `json:"name"`
-				Amount float64 `json:"amount"`
-			} `json:"nutrients"`
+			Nutrients []Nutrients `json:"nutrients"`
 		} `json:"nutrition"`
 	} `json:"results"`
 }
 
-func findByIngredients(apiKey string, ingredients string, numb int) {
+func findByIngredients(apiKey string, ingredients string, numb int, db *sql.DB) {
 	client := http.DefaultClient
 	url := "https://api.spoonacular.com/recipes/findByIngredients?ingredients=" + ingredients + "&number=" + strconv.Itoa(numb) + "&ranking=2&apiKey=" + apiKey
 	res, err := client.Get(url)
@@ -45,13 +48,18 @@ func findByIngredients(apiKey string, ingredients string, numb int) {
 		os.Exit(1)
 	}
 
+	for i, recipe := range recipes {
+		recipes[i] = findByTitle(apiKey, &recipe)
+	}
+
+	id := insertHistory(db, ingredients, numb)
 	for _, recipe := range recipes {
-		findByTitle(apiKey, &recipe)
+		insertDetailsHistory(db, ingredients, numb, &recipe, id)
 	}
 
 }
 
-func findByTitle(apiKey string, recip *Recipe) {
+func findByTitle(apiKey string, recip *Recipe) Recipe {
 	url := "https://api.spoonacular.com/recipes/complexSearch?titleMatch=" + recip.Title + "&addRecipeNutrition=true&apiKey=" + apiKey
 
 	res, err := http.Get(url)
@@ -70,8 +78,8 @@ func findByTitle(apiKey string, recip *Recipe) {
 		fmt.Println("Brak przepisów w odpowiedzi.")
 		os.Exit(1)
 	}
+	return *recip
 
-	displayRecipeInfo(*recip)
 }
 
 func displayRecipeInfo(recip Recipe) {
