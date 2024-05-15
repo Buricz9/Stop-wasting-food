@@ -78,12 +78,51 @@ func isHistoryExists(db *sql.DB, ingredients string, number int) bool {
 	return false
 }
 
-func insertHistory(db *sql.DB, ingredients string, number int) int {
+func insertDetailsHistory(db *sql.DB, ingredients string, number int, recipe *Recipe, id int) {
 
-	query := `INSERT INTO history_of_inputs (historyOfIngredients, historyOfNumber) 
-		VALUES (?, ?) RETURNING id`
+	var cal, carb, prot float64
+	for _, nu := range recipe.Results[0].Nutrition.Nutrients {
+		if nu.Name == "Calories" {
+			cal = nu.Amount
+		} else if nu.Name == "Carbohydrates" {
+			carb = nu.Amount
+		} else if nu.Name == "Protein" {
+			prot = nu.Amount
+		}
+	}
 
 	var pk int
+	query := `INSERT INTO recipes (history_id,title,carbs,proteins,calories) VALUES (?,?,?,?,?) RETURNING id`
+	err := db.QueryRow(query, id, recipe.Title, carb, prot, cal).Scan(&pk)
+	if err != nil {
+		fmt.Println("Error inserting history into DB ----------2")
+		log.Fatal(err)
+	}
+
+	for _, ingredient := range recipe.MissedIngredients {
+		query = `INSERT INTO missingingredients (recipe_id, ingredient_name) VALUES (?, ?)`
+		_, err := db.Exec(query, pk, ingredient.Name)
+		if err != nil {
+			fmt.Println("Error inserting history into DB ----------3")
+			log.Fatal(err)
+		}
+	}
+
+	for _, ingredient := range recipe.UsedIngredients {
+		query = `INSERT INTO availableingredients (recipe_id, ingredient_name) VALUES (?, ?)`
+		_, err := db.Exec(query, pk, ingredient.Name)
+		if err != nil {
+			fmt.Println("Error inserting history into DB ----------4")
+
+			log.Fatal(err)
+		}
+	}
+}
+
+func insertHistory(db *sql.DB, ingredients string, number int) int {
+	// Insert into history_of_inputs
+	var pk int
+	query := `INSERT INTO history_of_inputs (historyOfIngredients, historyOfNumber) VALUES (?, ?) RETURNING id`
 	err := db.QueryRow(query, ingredients, number).Scan(&pk)
 	if err != nil {
 		log.Fatal(err)
