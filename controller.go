@@ -57,14 +57,6 @@ func getAllHistory(db *sql.DB) []History {
 	return data
 }
 
-func printFormattedHistory(data [][]interface{}) {
-	for _, d := range data {
-		ingredients := d[0].([]string)
-		number := d[1].(int)
-		fmt.Printf("[%v] %v\n", ingredients, number)
-	}
-}
-
 func isHistoryExists(db *sql.DB, ingredients string, number int) bool {
 	allHistory := getAllHistory(db)
 
