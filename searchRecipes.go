@@ -18,19 +18,36 @@ type Nutrients struct {
 	Name   string  `json:"name"`
 	Amount float64 `json:"amount"`
 }
-
 type Recipe struct {
 	Title             string       `json:"title"`
 	MissedIngredients []Ingredient `json:"missedIngredients"`
 	UsedIngredients   []Ingredient `json:"usedIngredients"`
-	Results           []struct {
+	Calories          float64
+	Carbohydrates     float64
+	Protein           float64
+}
+
+type Response struct {
+	Results []struct {
 		Nutrition struct {
 			Nutrients []Nutrients `json:"nutrients"`
 		} `json:"nutrition"`
 	} `json:"results"`
 }
 
+//	type Recipe struct {
+//		Title             string       `json:"title"`
+//		MissedIngredients []Ingredient `json:"missedIngredients"`
+//		UsedIngredients   []Ingredient `json:"usedIngredients"`
+//		Results           []struct {
+//			Nutrition struct {
+//				Nutrients []Nutrients `json:"nutrients"`
+//			} `json:"nutrition"`
+//		} `json:"results"`
+//	}
 func findByIngredients(apiKey string, ingredients string, numb int, db *sql.DB) {
+
+	// func findByIngredients(apiKey string, ingredients string, numb int) {
 	client := http.DefaultClient
 	url := "https://api.spoonacular.com/recipes/findByIngredients?ingredients=" + ingredients + "&number=" + strconv.Itoa(numb) + "&ranking=2&apiKey=" + apiKey
 	res, err := client.Get(url)
@@ -56,8 +73,12 @@ func findByIngredients(apiKey string, ingredients string, numb int, db *sql.DB) 
 	for _, recipe := range recipes {
 		insertDetailsHistory(db, ingredients, numb, &recipe, id)
 	}
-
+	for _, recipe := range recipes {
+		displayRecipeInfo(recipe)
+	}
 }
+
+// func findByTitle(apiKey string, recip *Recipe) Recipe {
 
 func findByTitle(apiKey string, recip *Recipe) Recipe {
 	url := "https://api.spoonacular.com/recipes/complexSearch?titleMatch=" + recip.Title + "&addRecipeNutrition=true&apiKey=" + apiKey
@@ -69,15 +90,20 @@ func findByTitle(apiKey string, recip *Recipe) Recipe {
 	}
 	defer res.Body.Close()
 
-	if err := json.NewDecoder(res.Body).Decode(&recip); err != nil {
+	var nut Response
+	if err := json.NewDecoder(res.Body).Decode(&nut); err != nil {
 		fmt.Println("Błąd podczas dekodowania danych JSON:", err)
 		os.Exit(1)
 	}
 
-	if len(recip.Results) == 0 {
-		fmt.Println("Brak przepisów w odpowiedzi.")
-		os.Exit(1)
-	}
+	// if len(recip.Results) == 0 {
+	// 	fmt.Println("Brak przepisów w odpowiedzi.")
+	// 	os.Exit(1)
+	// }
+
+	recip.Calories = nut.Results[0].Nutrition.Nutrients[0].Amount
+	recip.Carbohydrates = nut.Results[0].Nutrition.Nutrients[1].Amount
+	recip.Protein = nut.Results[0].Nutrition.Nutrients[2].Amount
 	return *recip
 
 }
@@ -97,9 +123,12 @@ func displayRecipeInfo(recip Recipe) {
 	}
 
 	fmt.Println("\nInformacje o składnikach odżywczych:")
-	for _, nu := range recip.Results[0].Nutrition.Nutrients {
-		if nu.Name == "Calories" || nu.Name == "Carbohydrates" || nu.Name == "Protein" {
-			fmt.Printf(" - %s: %.2f\n", nu.Name, nu.Amount)
-		}
-	}
+	fmt.Println(" - Calories:", recip.Calories)
+	fmt.Println(" - Carbohydrates:", recip.Carbohydrates)
+	fmt.Println(" - Protein:", recip.Protein)
+	// for _, nu := range recip {
+	// 	if nu.Name == "Calories" || nu.Name == "Carbohydrates" || nu.Name == "Protein" {
+	// 		fmt.Printf(" - %s: %.2f\n", nu.Name, nu.Amount)
+	// 	}
+	// }
 }
