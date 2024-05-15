@@ -82,14 +82,10 @@ func getDetailsRecipe(db *sql.DB, ingredients string, number int) {
 	}
 	defer rows.Close()
 
-	fmt.Println("PK1:", pk)
-
 	for rows.Next() {
-		// err := rows.Scan(&pk)
 		var title string
 		var carbs, proteins, calories float64
 		err := rows.Scan(&pk, &title, &carbs, &proteins, &calories)
-		fmt.Println("Id:", pk)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -101,7 +97,6 @@ func getDetailsRecipe(db *sql.DB, ingredients string, number int) {
 			Calories:      calories,
 		}
 
-		// Pobieranie składników brakujących
 		rows, err := db.Query("SELECT ingredient_name FROM missingingredients WHERE recipe_id = ?", pk)
 		if err != nil {
 			log.Fatal(err)
@@ -117,7 +112,6 @@ func getDetailsRecipe(db *sql.DB, ingredients string, number int) {
 			recipe.MissedIngredients = append(recipe.MissedIngredients, Ingredient{Name: ingredientName})
 		}
 
-		// Pobieranie dostępnych składników
 		rows, err = db.Query("SELECT ingredient_name FROM availableingredients WHERE recipe_id = ?", pk)
 		if err != nil {
 			log.Fatal(err)
@@ -133,7 +127,6 @@ func getDetailsRecipe(db *sql.DB, ingredients string, number int) {
 			recipe.UsedIngredients = append(recipe.UsedIngredients, Ingredient{Name: ingredientName})
 		}
 
-		// Wyświetlanie informacji o przepisie
 		displayRecipeInfo(recipe)
 	}
 }
